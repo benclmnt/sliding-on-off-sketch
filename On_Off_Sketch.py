@@ -5,14 +5,15 @@ Name2: Bennett Clement (A0200739J)
 Algorithm reference: https://github.com/Sketch-Data-Stream/On-Off-Sketch
 '''
 
-import gym
+import
 
 
 class OO_PE(object):
     '''
+    PE: persistence estimation
     '''
 
-    def __init__(self, env, lanes, width, gamma):
+    def __init__(self):
     
             
     def Abstract(self):
@@ -33,9 +34,10 @@ class OO_PE(object):
      
 class OO_FPI(object):
     '''
+    FPI: finding persistent items
     '''
 
-    def __init__(self, env, lanes, width, gamma):
+    def __init__(self):
     
             
     def Abstract(self):
@@ -58,4 +60,44 @@ class OO_FPI(object):
         '''
         '''
      
+class benchmark(object):
+    '''
+    some benchmarks about AAE, F1 Score, and throughput
+    '''
 
+    def __init__(self):
+    
+            
+    def BenchMark(self):
+        '''
+        '''
+        
+    def SketchError(self):
+        '''
+        '''
+
+    def TopKError(self):
+        '''
+        '''
+        
+    def Thp(self):
+        '''
+        '''
+     
+     
+class hash(object):
+    '''
+    some benchmarks about AAE, F1 Score, and throughput
+    '''
+
+    def __init__(self):
+
+
+    def BOBHash32(self):
+        '''
+        '''
+        
+    def BOBHash64(self):
+        '''
+        '''
+        
