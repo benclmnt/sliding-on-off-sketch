@@ -70,7 +70,7 @@ class PE:
     def new_window(self):
         for i in range(self.d):
             for j in range(self.l):
-                self.counters[i][j].reset_state()
+                self.counters[i][j] = self.counters[i][j].reset_state()
 
     def insert(self, x):
         """
@@ -92,33 +92,66 @@ class PE:
         )
 
 
-class OO_FPI(object):
+@dataclass
+class FPI:
     """
     FPI: finding persistent items
     """
 
-    def __init__(self):
-        pass
+    l: int
+    w: int
+    hash_fn: Callable = field(init=False)
+    buckets: List[Dict[Any, StateCounter]] = field(init=False)
+    counters: List[StateCounter] = field(init=False)
+    h: InitVar[Callable] = None
 
-    def Abstract(self):
-        """ """
-        pass
+    def __post_init__(self, h):
+        """
+        l: each hash function h_1 : {1...N} -> {1...l}
+        ds: [
+                {
+                    value1: (ON, 4),
+                    value2: (ON, 3),
+                }
+            ]
+        """
+        self.hash_fn = h
+        self.counters = [StateCounter()] * self.l
+        self.buckets = [{}] * self.l
 
-    def bucket(self):
-        """ """
-        pass
+    def insert(self, x):
+        hash_val = self.hash_fn(x)
+        if x in self.buckets[hash_val]:
+            self.buckets[hash_val][x] = self.buckets[hash_val][x].increment()
+            return
 
-    def insert(self):
-        """ """
-        pass
+        self.counters[hash_val] = self.counters[hash_val].increment()
+        min_in_buckets = min(
+            map(lambda k, v: (v.counter, v.state, k), self.buckets[hash_val].values())
+        )
+        if self.counters[hash_val][1] > min_in_buckets[0]:
+            (
+                self.buckets[hash_val][min_in_buckets[2]],
+                self.counters[hash_val],
+            ) = self.counters[hash_val], StateCounter(
+                state=min_in_buckets[1], counter=min_in_buckets[0]
+            )
 
-    def Query(self):
-        """ """
-        pass
+    def query(self, threshold):
+        res = []
+        for i in range(len(self.buckets)):
+            for k, v in self.buckets[i].items():
+                if v.counter > threshold:
+                    res.append(k)
+        return res
 
-    def NewWindow(self):
-        """ """
-        pass
+    def new_window(self):
+        for i in range(len(self.buckets)):
+            for k, v in self.buckets[i].items():
+                self.buckets[i][k] = v.reset_state()
+
+        for i in range(len(self.counters)):
+            self.counters[i] = self.counters[i].reset_state()
 
 
 class Benchmark:
@@ -161,3 +194,8 @@ class Hash:
     def BOBHash64(self):
         """ """
         pass
+
+
+if __name__ == "__main__":
+    pe = FPI(5, 3, lambda x: x)
+    print(pe)
