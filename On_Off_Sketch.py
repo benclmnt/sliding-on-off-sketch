@@ -47,12 +47,19 @@ class SlidingStateCounter(StateCounter):
         if self.d < 0:
             raise ValueError("Please specify value for d")
 
+    @property
+    def counter_sum(self):
+        return sum(sc.counter for sc in self.history)
+
     def new_day(self):
-        if len(self.history) < (self.d - 1):
-            self.history.append(StateCounter(self.state, self.counter))
-        else:
+        """
+        New day starts, and all stored information are shifted to be 1 days older
+        Current state is reset
+        """
+        if len(self.history) == (self.d - 1):
             self.history.pop(0)
-        # reset
+        self.history.append(StateCounter(self.state, self.counter))
+
         self.state, self.counter = ON, 0
 
 
@@ -87,7 +94,7 @@ class PE:
     l: int
     hash_fns: List[Callable] = field(init=False, repr=False)
     counters: List[List[StateCounter]] = field(init=False)
-    h: InitVar[List[Callable]] = None
+    h: InitVar[List[Callable]]
 
     def __post_init__(self, h):
         self.counters = [[StateCounter() for _ in range(self.l)] for _ in range(self.d)]
@@ -103,7 +110,7 @@ class PE:
         Insert x into counter
         """
         for i in range(self.d):
-            hash_val = self.hash_fns[i](x)
+            hash_val = self.hash_fns[i](x) % self.l
             self.counters[i][hash_val].increment()
 
     def query(self, x):
@@ -113,14 +120,54 @@ class PE:
         return min(
             map(
                 lambda x: x.counter,
-                [self.counters[i][self.hash_fns[i](x)] for i in range(self.d)],
+                [self.counters[i][self.hash_fns[i](x) % self.l] for i in range(self.d)],
             )
         )
 
 
 @dataclass
 class SI_PE(PE):
-    pass
+    """
+    k: number of fields in each bucket, recording information in the last d Days. Increases space usage by d times
+    N: sliding window size. Each sliding window contains N time windows.
+    time_window: which time_window it is currently in?
+    """
+
+    k: int
+    N: int
+    counters: List[List[SlidingStateCounter]] = field(init=False)
+    time_window: int = field(init=False)
+
+    def __post_init__(self, h):
+        self.counters = [
+            [SlidingStateCounter(d=self.k) for _ in range(self.l)]
+            for _ in range(self.d)
+        ]
+        self.hash_fns = h
+        self.time_window = 0
+
+    def new_window(self):
+        # reset state of all today counters
+        super().new_window()
+
+        # new_day for l/N buckets. Assume for now that l > N
+        buckets_to_advance = self.time_window * (self.l // self.N) + int(
+            self.time_window < self.l % self.N
+        )
+        for i in range(self.d):
+            for j in range(buckets_to_advance):
+                self.counters[i][self.time_window + j].new_day()
+
+        self.time_window = (self.time_window + 1) % self.N
+
+    def query(self, x):
+        # Sum strategy
+        return min(
+            map(
+                lambda y: y.counter_sum,
+                [self.counters[i][self.hash_fns[i](x) % self.l] for i in range(self.d)],
+            )
+        )
 
 
 @dataclass
@@ -134,7 +181,7 @@ class FPI:
     hash_fn: Callable = field(init=False)
     buckets: List[Dict[Any, StateCounter]] = field(init=False)
     counters: List[StateCounter] = field(init=False)
-    h: InitVar[Callable] = None
+    h: InitVar[Callable]
 
     def __post_init__(self, h):
         """
@@ -248,3 +295,8 @@ class Hash:
     def BOBHash64(self):
         """ """
         pass
+
+
+if __name__ == "__main__":
+    sipe = SI_PE(5, 3, get_hash_fns(5, 3), 1, 2)
+    print(sipe)
