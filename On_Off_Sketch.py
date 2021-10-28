@@ -13,24 +13,47 @@ ON = 1
 OFF = 0
 
 
-@dataclass(eq=True, frozen=True, order=True)
+@dataclass
 class StateCounter:
     state: int = field(default=ON, compare=False)
     counter: int = 0
 
-    def increment(self) -> "StateCounter":
+    def increment(self):
         if self.state == OFF:
             return self
+        self.state, self.counter = OFF, self.counter + 1
 
-        return StateCounter(OFF, self.counter + 1)
-
-    def reset_state(self) -> "StateCounter":
+    def reset_state(self):
         """Set state fields to ON"""
-        return StateCounter(ON, self.counter)
+        self.state = ON
+        return self
 
-    def copy(self) -> "StateCounter":
+    def copy(self):
         """Returns a copy of itself"""
         return StateCounter(self.state, self.counter)
+
+
+@dataclass
+class SlidingStateCounter(StateCounter):
+    """
+    d: length of history recorded
+    history: a record of the last (d - 1) StateCounter(s)
+    """
+
+    history: List[StateCounter] = field(default_factory=list, compare=False)
+    d: int = -1
+
+    def __post_init__(self):
+        if self.d < 0:
+            raise ValueError("Please specify value for d")
+
+    def new_day(self):
+        if len(self.history) < (self.d - 1):
+            self.history.append(StateCounter(self.state, self.counter))
+        else:
+            self.history.pop(0)
+        # reset
+        self.state, self.counter = ON, 0
 
 
 def get_hash_fns(d, l):
@@ -64,15 +87,16 @@ class PE:
     l: int
     hash_fns: List[Callable] = field(init=False, repr=False)
     counters: List[List[StateCounter]] = field(init=False)
+    h: InitVar[List[Callable]] = None
 
-    def __post_init__(self):
-        self.counters = [[StateCounter()] * self.l for _ in range(self.d)]
-        self.hash_fns = get_hash_fns(self.d, self.l)
+    def __post_init__(self, h):
+        self.counters = [[StateCounter() for _ in range(self.l)] for _ in range(self.d)]
+        self.hash_fns = h or get_hash_fns(self.d, self.l)
 
     def new_window(self):
         for i in range(self.d):
             for j in range(self.l):
-                self.counters[i][j] = self.counters[i][j].reset_state()
+                self.counters[i][j].reset_state()
 
     def insert(self, x):
         """
@@ -80,7 +104,7 @@ class PE:
         """
         for i in range(self.d):
             hash_val = self.hash_fns[i](x)
-            self.counters[i][hash_val] = self.counters[i][hash_val].increment()
+            self.counters[i][hash_val].increment()
 
     def query(self, x):
         """
@@ -102,7 +126,7 @@ class SI_PE(PE):
 @dataclass
 class FPI:
     """
-    FPI: finding persistent items
+    FPI finding persistent items
     """
 
     l: int
@@ -115,6 +139,11 @@ class FPI:
     def __post_init__(self, h):
         """
         l: each hash function h_1 : {1...N} -> {1...l}
+        counters: [
+            (ON, 0),
+            (OFF, 1),
+            ...
+        ]
         buckets: [
                 {
                     value1: (ON, 4),
@@ -131,15 +160,16 @@ class FPI:
 
         # Check if x is recorded in bucket
         if x in self.buckets[hash_val]:
-            self.buckets[hash_val][x] = self.buckets[hash_val][x].increment()
+            self.buckets[hash_val][x].increment()
             return
-
-        # x is not separately recorded. Increment counter
-        self.counters[hash_val] = self.counters[hash_val].increment()
 
         if len(self.buckets[hash_val]) < self.w:
             self.buckets[hash_val][x] = self.counters[hash_val].copy()
+            self.buckets[hash_val][x].increment()
             return
+
+        # x is not separately recorded. Increment counter
+        self.counters[hash_val].increment()
 
         # Find min counter currently stored in buckets,
         min_counter, min_counter_key = min(
@@ -163,11 +193,11 @@ class FPI:
 
     def new_window(self):
         for i in range(len(self.buckets)):
-            for k, v in self.buckets[i].items():
-                self.buckets[i][k] = v.reset_state()
+            for v in self.buckets[i].values():
+                v.reset_state()
 
         for i in range(len(self.counters)):
-            self.counters[i] = self.counters[i].reset_state()
+            self.counters[i].reset_state()
 
 
 class Benchmark:
@@ -210,38 +240,3 @@ class Hash:
     def BOBHash64(self):
         """ """
         pass
-
-
-def pe_simple_test():
-    pe = PE(3, 5)
-    pe.insert(1)
-    pe.insert(2)
-    print(f"-> {pe = }")
-    pe.new_window()
-    pe.insert(11)
-    print(f" -> {pe.query(2) = }")
-    print(f" -> {pe.query(3) = }")
-    print(f" -> {pe.query(6) = }")
-
-
-def fpi_simple_test():
-    fpi = FPI(5, 1, lambda x: x % 5)
-    fpi.insert(1)
-    fpi.insert(2)
-    print(f"-> {fpi = }")
-    fpi.new_window()
-    print(f"-> {fpi = }")
-    fpi.insert(11)
-    print(f"-> {fpi = }")
-    fpi.insert(1)
-    fpi.insert(1)
-    print(f"-> {fpi = }")
-    fpi.new_window()
-    fpi.insert(1)
-    print(f"-> {fpi = }")
-    print(f" -> {fpi.query(1) = }")
-    print(f" -> {fpi.query(2) = }")
-
-
-if __name__ == "__main__":
-    fpi_simple_test()
