@@ -13,33 +13,35 @@ ON = 1
 OFF = 0
 
 
-@dataclass(eq=True, frozen=True)
+@dataclass(eq=True, frozen=True, order=True)
 class StateCounter:
-    state: int = ON
+    state: int = field(default=ON, compare=False)
     counter: int = 0
 
-    def increment(self) -> "SelfCounter":
+    def increment(self) -> "StateCounter":
         if self.state == OFF:
             return self
 
         return StateCounter(OFF, self.counter + 1)
 
-    def reset_state(self) -> "SelfCounter":
+    def reset_state(self) -> "StateCounter":
+        """Set state fields to ON"""
         return StateCounter(ON, self.counter)
 
-    def reset(self) -> "SelfCounter":
-        return StateCounter(ON, 0)
+    def copy(self) -> "StateCounter":
+        """Returns a copy of itself"""
+        return StateCounter(self.state, self.counter)
 
 
 def get_hash_fns(d, l):
     # TODO: populate this method
-    return []
+    return [lambda x: (x + i) % l for i in range(d)]
 
 
 @dataclass
 class PE:
     """
-    PE: persistence estimation
+    Persistence Estimation
 
     d: the number of pairwise independent hash functions.
     l: each hash function h_1 : {1...N} -> {1...l}
@@ -86,10 +88,15 @@ class PE:
         """
         return min(
             map(
-                lambda x: x[1],
+                lambda x: x.counter,
                 [self.counters[i][self.hash_fns[i](x)] for i in range(self.d)],
             )
         )
+
+
+@dataclass
+class SI_PE(PE):
+    pass
 
 
 @dataclass
@@ -108,7 +115,7 @@ class FPI:
     def __post_init__(self, h):
         """
         l: each hash function h_1 : {1...N} -> {1...l}
-        ds: [
+        buckets: [
                 {
                     value1: (ON, 4),
                     value2: (ON, 3),
@@ -116,28 +123,37 @@ class FPI:
             ]
         """
         self.hash_fn = h
-        self.counters = [StateCounter()] * self.l
-        self.buckets = [{}] * self.l
+        self.counters = [StateCounter() for _ in range(self.l)]
+        self.buckets = [dict() for _ in range(self.l)]
 
     def insert(self, x):
         hash_val = self.hash_fn(x)
+
+        # Check if x is recorded in bucket
         if x in self.buckets[hash_val]:
             self.buckets[hash_val][x] = self.buckets[hash_val][x].increment()
             return
 
+        # x is not separately recorded. Increment counter
         self.counters[hash_val] = self.counters[hash_val].increment()
-        min_in_buckets = min(
-            map(lambda k, v: (v.counter, v.state, k), self.buckets[hash_val].values())
+
+        if len(self.buckets[hash_val]) < self.w:
+            self.buckets[hash_val][x] = self.counters[hash_val].copy()
+            return
+
+        # Find min counter currently stored in buckets,
+        min_counter, min_counter_key = min(
+            map(lambda x: (x[1], x[0]), self.buckets[hash_val].items())
         )
-        if self.counters[hash_val][1] > min_in_buckets[0]:
-            (
-                self.buckets[hash_val][min_in_buckets[2]],
-                self.counters[hash_val],
-            ) = self.counters[hash_val], StateCounter(
-                state=min_in_buckets[1], counter=min_in_buckets[0]
-            )
+
+        # if current counter > min counter stored in bucket, swao the counters
+        if self.counters[hash_val].counter > min_counter.counter:
+            self.buckets[hash_val][x] = self.counters[hash_val]
+            self.counters[hash_val] = min_counter
+            del self.buckets[hash_val][min_counter_key]
 
     def query(self, threshold):
+        """Get all items that appears > threshold times"""
         res = []
         for i in range(len(self.buckets)):
             for k, v in self.buckets[i].items():
@@ -196,6 +212,36 @@ class Hash:
         pass
 
 
+def pe_simple_test():
+    pe = PE(3, 5)
+    pe.insert(1)
+    pe.insert(2)
+    print(f"-> {pe = }")
+    pe.new_window()
+    pe.insert(11)
+    print(f" -> {pe.query(2) = }")
+    print(f" -> {pe.query(3) = }")
+    print(f" -> {pe.query(6) = }")
+
+
+def fpi_simple_test():
+    fpi = FPI(5, 1, lambda x: x % 5)
+    fpi.insert(1)
+    fpi.insert(2)
+    print(f"-> {fpi = }")
+    fpi.new_window()
+    print(f"-> {fpi = }")
+    fpi.insert(11)
+    print(f"-> {fpi = }")
+    fpi.insert(1)
+    fpi.insert(1)
+    print(f"-> {fpi = }")
+    fpi.new_window()
+    fpi.insert(1)
+    print(f"-> {fpi = }")
+    print(f" -> {fpi.query(1) = }")
+    print(f" -> {fpi.query(2) = }")
+
+
 if __name__ == "__main__":
-    pe = FPI(5, 3, lambda x: x)
-    print(pe)
+    fpi_simple_test()
