@@ -156,7 +156,7 @@ class FPI:
         self.buckets = [dict() for _ in range(self.l)]
 
     def insert(self, x):
-        hash_val = self.hash_fn(x)
+        hash_val = self.hash_fn(x) % self.l
 
         # Check if x is recorded in bucket
         if x in self.buckets[hash_val]:
@@ -182,7 +182,7 @@ class FPI:
             self.counters[hash_val] = min_counter
             del self.buckets[hash_val][min_counter_key]
 
-    def query(self, threshold):
+    def find_persistent_above(self, threshold):
         """Get all items that appears > threshold times"""
         res = []
         for i in range(len(self.buckets)):
@@ -190,6 +190,14 @@ class FPI:
                 if v.counter > threshold:
                     res.append(k)
         return res
+
+    def query(self, x) -> int:
+        """Check if x is persistent, if so return the number of time windows it appears, otherwise 0"""
+        hash_val = self.hash_fn(x) % self.l
+        for k in self.buckets[hash_val].keys():
+            if k == x:
+                return self.buckets[hash_val][x].counter
+        return 0
 
     def new_window(self):
         for i in range(len(self.buckets)):
