@@ -8,6 +8,7 @@ Algorithm reference: https://github.com/Sketch-Data-Stream/On-Off-Sketch
 from dataclasses import dataclass, field, InitVar
 from typing import List, Callable, Dict, Any
 from pprint import pprint
+import spookyhash
 
 # State
 ON = 1
@@ -74,7 +75,10 @@ class SlidingStateCounter(StateCounter):
 
 def get_hash_fns(d, l):
     # TODO: populate this method
-    return [lambda x: (x + i) % l for i in range(d)]
+    return [
+        lambda x, seed=seed: spookyhash.hash32(x.encode(), seed=seed) % l
+        for seed in range(d)
+    ]
 
 
 @dataclass
@@ -310,23 +314,6 @@ class Benchmark:
         pass
 
     def Thp(self):
-        """ """
-        pass
-
-
-class Hash:
-    """
-    some benchmarks about AAE, F1 Score, and throughput
-    """
-
-    def __init__(self):
-        pass
-
-    def BOBHash32(self):
-        """ """
-        pass
-
-    def BOBHash64(self):
         """ """
         pass
 
