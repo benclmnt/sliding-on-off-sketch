@@ -2,6 +2,13 @@ import unittest
 from On_Off_Sketch import StateCounter, SlidingStateCounter, ON, OFF, PE, FPI
 
 
+import numpy as np
+import pandas as pd
+import os
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import confusion_matrix
+
+"""
 class StateCounterTest(unittest.TestCase):
     def test_initial_state(self):
         sc = StateCounter()
@@ -25,12 +32,12 @@ class StateCounterTest(unittest.TestCase):
         self.assertEqual(sc.counter, 1)
 
 
-# class SlidingStateCounterTest(unittest.TestCase):
-#     def test_init(self):
-#         ssc = SlidingStateCounter(d=2)
-#         self.assertEqual(ssc.state, ON)
-#         self.assertEqual(ssc.counter, 0)
-#         self.assertEqual(ssc.d, 2)
+class SlidingStateCounterTest(unittest.TestCase):
+    def test_init(self):
+        ssc = SlidingStateCounter(d=2)
+        self.assertEqual(ssc.state, ON)
+        self.assertEqual(ssc.counter, 0)
+        self.assertEqual(ssc.d, 2)
 
 
 class PE_Test(unittest.TestCase):
@@ -73,6 +80,24 @@ class FPI_Test(unittest.TestCase):
         self.assertEqual(fpi.find_persistent_above(1), [1, 7])
         self.assertEqual(fpi.find_persistent_above(2), [1])
 
+"""
 
+class PE_Test(unittest.TestCase):
+    def test_1(self):
+        l = 5
+        pe = PE(3, l, h=[lambda x: (x + i) % l for i in range(3)])
+        pe.insert(1)
+        pe.insert(2)
+        self.assertEqual(pe.query(6), 1)
+        pe.insert(6)
+        self.assertEqual(pe.query(6), 1)
+        pe.new_window()
+        pe.insert(11)
+        # print(f"-> {pe = }")
+        self.assertEqual(pe.query(1), 2)
+        self.assertEqual(pe.query(2), 1)
+        self.assertEqual(pe.query(3), 0)
+        self.assertEqual(pe.query(1), pe.query(6))
+        
 if __name__ == "__main__":
     unittest.main()
