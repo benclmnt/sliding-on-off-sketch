@@ -10,6 +10,12 @@ from typing import List, Callable, Dict, Any
 from pprint import pprint
 import spookyhash
 
+import numpy as np
+import pandas as pd
+import os
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import confusion_matrix
+
 # State
 ON = 1
 OFF = 0
@@ -310,6 +316,20 @@ class Benchmark:
         pass
 
     def TopKError(self):
+        """ """
+        pass
+
+    def Thp(self):
+        """ """
+        pass
+
+
+    def Thp(self):
+        """ """
+        pass
+
+
+    def Thp(self):
         """ """
         pass
 

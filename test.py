@@ -1,4 +1,3 @@
-import unittest
 from On_Off_Sketch import StateCounter, SlidingStateCounter, ON, OFF, PE, FPI
 
 
@@ -25,12 +24,12 @@ class StateCounterTest(unittest.TestCase):
         self.assertEqual(sc.counter, 1)
 
 
-# class SlidingStateCounterTest(unittest.TestCase):
-#     def test_init(self):
-#         ssc = SlidingStateCounter(d=2)
-#         self.assertEqual(ssc.state, ON)
-#         self.assertEqual(ssc.counter, 0)
-#         self.assertEqual(ssc.d, 2)
+class SlidingStateCounterTest(unittest.TestCase):
+    def test_init(self):
+        ssc = SlidingStateCounter(d=2)
+        self.assertEqual(ssc.state, ON)
+        self.assertEqual(ssc.counter, 0)
+        self.assertEqual(ssc.d, 2)
 
 
 class PE_Test(unittest.TestCase):
