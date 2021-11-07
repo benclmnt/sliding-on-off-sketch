@@ -80,7 +80,6 @@ class SlidingStateCounter(StateCounter):
 
 
 def get_hash_fns(d, l):
-    # TODO: populate this method
     return [
         lambda x, seed=seed: spookyhash.hash32(x.encode(), seed=seed) % l
         for seed in range(d)
