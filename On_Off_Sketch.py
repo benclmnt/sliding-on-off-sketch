@@ -324,19 +324,6 @@ class Benchmark:
         pass
 
 
-    def Thp(self):
-        """ """
-        pass
-
-
-    def Thp(self):
-        """ """
-        pass
-
-    def Thp(self):
-        """ """
-        pass
-
 
 if __name__ == "__main__":
     sipe = SI_PE(5, 3, get_hash_fns(5, 3), 1, 2)
