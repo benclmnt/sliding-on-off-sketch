@@ -7,7 +7,7 @@ import pandas as pd
 
 # set filename and file directory
 raw_file = 'sample'
-file_dir = '/Users/jiamengma/Documents/GitHub/nus-cs5234-miniproject/'
+file_dir = './'
 
 """
     set basic paramters

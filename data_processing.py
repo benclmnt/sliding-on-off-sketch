@@ -19,15 +19,17 @@ t_end = 9
 
 # save raw data to dataframe; sort the data by timespan
 def load_dataset(file_dir, raw_file):
-    df_raw = pd.read_csv(file_dir+raw_file+'.txt', sep=" ", header=None, names=["UsrA", "UsrB", "Time"])
+    df_raw = pd.read_csv(
+        file_dir+raw_file+'.txt', sep=" ", header=None, names=["UsrA", "UsrB", "Time"]
+    )
     df_tmp = df_raw.drop(columns=["UsrB"])
-    df= df_tmp.sort_values(by='Time')
+    df = df_tmp.sort_values(by="Time")
     # print(df_tmp.head())
     print(df_tmp.dtypes)
     # print("data structure shape is", df_tmp.shape)
     # print(df.head())
-    t_min = df['Time'].min()
-    t_max = df['Time'].max()
+    t_min = df["Time"].min()
+    t_max = df["Time"].max()
     print(t_min)
     print(t_max)
     return df, t_min, t_max
