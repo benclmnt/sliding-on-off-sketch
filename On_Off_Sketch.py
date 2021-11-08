@@ -245,7 +245,7 @@ class FPI:
         res = []
         for i in range(len(self.buckets)):
             for k, v in self.buckets[i].items():
-                if v.counter > threshold:
+                if v.counter >= threshold:
                     res.append(k)
         return res
 

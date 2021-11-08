@@ -24,6 +24,7 @@ file_dir = "./"
     L: length of StateCounter array for PE
 
     win_size: time window size
+    win_SL: in sliding window, the date is maintained by win_SL latest window
     t_min: earliest time in dataset
     t_max: last time in dataset
     t_start: starting point of test (greater than 1217567877)
@@ -35,11 +36,12 @@ file_dir = "./"
 
     useSL: enable sliding window option
 """
-#  para_d  para_L  para_win_size  para_N  para_w  para_threshold  para_useSL  t_start t_query t_end
+#  para_d  para_L  para_win_size  para_win_SL para_N  para_w  para_threshold  para_useSL  t_start t_query t_end
 # t_end will be set programmatically.
 params = [
-    [5, 10, 100000, 300000, 10, 2, False, 1217567877, [1217800000, 1218000000], 0],
-    [5, 10, 100000, 300000, 10, 10, False, 1217567877,[1217800000, 1218000000], 0],
+    # [5, 10, 10000, 3, 30000, 10, 1, False, 1217567877, [1217618799, 1217623216], 0],
+    # [5, 20, 10000, 2, 30000, 10, 1, False, 1217567877,[1217618799, 1217623216], 0],
+    [5, 20, 1000, 2, 3000, 10, 1, True, 1217567877,[1217618799, 1217623216], 0],
 ]
 
 # table to gather test results: AAE, FNR, FPR
@@ -58,7 +60,7 @@ if __name__ == "__main__":
         print()
         print("=================================")
         print("test run No.", testset)
-        LookupT = new_LookupTable(dataset, len(params[0][8]))
+        LookupT = new_LookupTable(dataset, len(params[testset][idx_t_query]))
         LookupT = get_real_persistency(dataset, LookupT, params[testset])
         LookupT = run_simulation(dataset, LookupT, params[testset])
         for j in range(len(params[testset][idx_t_query])):
@@ -75,4 +77,5 @@ if __name__ == "__main__":
             )
     print(output)
     output.to_csv('benchmark.txt', index=False,  sep=' ')
+    LookupT.to_csv('LookupT.txt', index=False,  sep=' ')
     print("Done")

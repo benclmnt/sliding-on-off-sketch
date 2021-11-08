@@ -7,6 +7,7 @@ from On_Off_Sketch import PE, FPI, get_hash_fns
     idx_d,
     idx_L,
     idx_win_size,
+    idx_win_SL,
     idx_N,
     idx_w,
     idx_threshold,
@@ -14,15 +15,16 @@ from On_Off_Sketch import PE, FPI, get_hash_fns
     idx_t_start,
     idx_t_query,
     idx_t_end,
-) = range(10)
+) = range(11)
 
 
-(
+(   
+    index,
     real_Persistency,
     est_Persistency,
     real_FPI,
     est_FPI,
-) = range(4)
+) = range(5)
 
 # save raw data to dataframe; sort the data by timespan
 def load_dataset(file_dir, raw_file):
@@ -42,6 +44,7 @@ def load_dataset(file_dir, raw_file):
     t_max = df["Time"].max()
     # print(t_min)
     # print(t_max)
+    # df.to_csv('df.txt', index=False,  sep=' ')
     return df, t_min, t_max
     # TBD: could further simplify time precision from sec to day
 
@@ -58,6 +61,7 @@ def new_LookupTable(df, query_num):
     lookupT["UsrA"] = df.UsrA.unique()
     lookupT = lookupT.fillna(0)
     # print(lookupT.head())
+    # lookupT.to_csv('lu.txt', index=False,  sep=' ')
     return lookupT
 
 
@@ -102,12 +106,8 @@ def get_real_persistency(df, lookupT, params):
     for j in range(len(params[idx_t_query])):
         #  select the duration of time to record persistence based on Sliding Window: useSL
         if params[idx_useSL]:
-            win_count = int(
-                (params[idx_t_query][j] - params[idx_t_start]) / params[idx_win_size] + 1
-            )
-            startT = int(
-                (params[idx_t_query][j] - params[idx_t_start]) / params[idx_win_size] + 1
-            )
+            win_count = params[idx_win_SL]  
+            startT = params[idx_t_query][j] - params[idx_win_size] * win_count
         else:
             win_count = int(
                 (params[idx_t_query][j] - params[idx_t_start]) / params[idx_win_size] + 1
@@ -118,7 +118,7 @@ def get_real_persistency(df, lookupT, params):
         for _ in range(win_count):
             endT = min(startT + params[idx_win_size], params[idx_t_query][j])
             unique_user_in_window = df[
-                (df["Time"] >= startT) & (df["Time"] <= endT)
+                (df["Time"] >= startT) & (df["Time"] < endT)
             ].UsrA.unique()
             for user in range(len(unique_user_in_window)):
                 index = lookupT[(lookupT["UsrA"] == unique_user_in_window[user])].index
@@ -155,32 +155,50 @@ def run_simulation(df, lookupT, params):
     fpi = FPI(L, w)
     query_list = params[idx_t_query]
 
-    # max_time = min(df['Time'].max(), idx_t_start+win_size*T)
-
     start, end, win_size = params[idx_t_start], query_list[-1], params[idx_win_size]
     win_start, win_end = start, start + win_size
 
-    # for i in range(df.shape[0]):
-    for _ in range(query_list[-1] + 1):
+    for i in range(df.shape[0]):
         if win_start > end:
             break
-        subset_c = df[(df["Time"] == win_start)].UsrA.to_numpy()
-        for m in range(len(subset_c)):
-            pe.insert(subset_c[m])
-            fpi.insert(subset_c[m])
-        if win_start in query_list:
-            index = query_list.index(win_start)
+
+        # query > new_window > insert
+        # at time t = df.iloc[i,1], if has query, query before insertion
+        if df.iloc[i,1] in query_list:
+            ind = query_list.index(df.iloc[i,1])
             for k in range(lookupT.shape[0]):
-                lookupT.iloc[k, 4*index+est_Persistency] = pe.query(lookupT.UsrA[k])
+                lookupT.iloc[k, 4*ind+est_Persistency] = pe.query(lookupT.UsrA[k])
             FPI_list = fpi.find_persistent_above(params[idx_threshold])
             for k in range(len(FPI_list)):
                 index = lookupT[(lookupT["UsrA"] == FPI_list[k])].index
-                lookupT.iloc[index, 4*index+est_FPI] = 1
-        if win_start == win_end:
+                lookupT.iloc[index, 4*ind+est_FPI] = 1
+
+        # start insertion and new_window
+        if df.iloc[i,1] < win_end: 
+            pe.insert(df.iloc[i,0])
+            fpi.insert(df.iloc[i,0])
+            print("insert : "+str(df.iloc[i,0])+" at "+str(df.iloc[i,1]))
+
+        # query > new_window > insert
+        if df.iloc[i,1] == win_end: 
             pe.new_window()
             fpi.new_window()
+            print("new window")
             win_end = win_end + win_size
-        win_start = win_start + 1
+            pe.insert(df.iloc[i,0])
+            fpi.insert(df.iloc[i,0])
+            print("insert : "+str(df.iloc[i,0])+" at "+str(df.iloc[i,1]))
+
+        if df.iloc[i,1] > win_end: 
+            delta_win = int((df.iloc[i,1] - win_end)/win_size)+1
+            for _ in range(delta_win):
+                pe.new_window()
+                fpi.new_window()
+                print("new window")
+            pe.insert(df.iloc[i,0])
+            fpi.insert(df.iloc[i,0])
+            print("insert : "+str(df.iloc[i,0])+" at "+str(df.iloc[i,1]))
+            win_end = win_end + win_size * delta_win
 
     # print(lookupT)
 
