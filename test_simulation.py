@@ -38,13 +38,23 @@ file_dir = "./"
 #  para_d  para_L  para_win_size  para_N  para_w  para_threshold  para_useSL  t_start t_query t_end
 # t_end will be set programmatically.
 params = [
-    [5, 10, 100000, 300000, 10, 2, False, 1217567877, [1217800000, 1218000000], 0],
-    [5, 10, 100000, 300000, 10, 10, False, 1217567877,[1217800000, 1218000000], 0],
+    [5, 10, 100000, 300000, 10, 2, True, 1217567877, [1217567877, 1218000000], 0],
+    [5, 10, 100000, 300000, 10, 10, True, 1217567877,[1217567877, 1218000000], 0],
 ]
+
+BY_DATE = 1
+
+if BY_DATE == 1:
+    for i in range(len(params)):
+        params[i][2]= int(params[i][2]/86400)
+        params[i][3]= int(params[i][3]/86400)
+        for j in range(len(params[i][8])):
+            params[i][8][j] = int((params[i][8][j]-1217567877)/86400)
 
 # table to gather test results: AAE, FNR, FPR
 col_names = ["testset", "queryT", "aae", "fnr", "fpr"]
 output = pd.DataFrame(columns = col_names)
+
 
 
 if __name__ == "__main__":
@@ -75,4 +85,4 @@ if __name__ == "__main__":
             )
     print(output)
     output.to_csv('benchmark.txt', index=False,  sep=' ')
-    print("Done")
+    print("Done. Saved to benchmark.txt")

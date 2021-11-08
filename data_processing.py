@@ -3,6 +3,8 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import confusion_matrix
 from On_Off_Sketch import PE, FPI, get_hash_fns
 
+BY_DATE = 1
+
 (
     idx_d,
     idx_L,
@@ -33,6 +35,10 @@ def load_dataset(file_dir, raw_file):
         names=["UsrA", "UsrB", "Time"],
     )
     df_tmp = df_raw.drop(columns=["UsrB"])
+    # 2008-01-01 00:00:00 = 1199116800
+    # one day = 24*60*60 secs = 86400 secs
+    if BY_DATE == 1:
+        df_tmp = df_tmp.apply(lambda x: int((x-1199116800)/86400) if x.name == 'UsrB' else x)
     df = df_tmp.sort_values(by="Time")
     # print(df_tmp.head())
     # print(df_tmp.dtypes)
@@ -67,7 +73,7 @@ def get_avg_abs_err(lookupT, query_i):
     pe_est = lookupT.iloc[:, 4*query_i+est_Persistency]
     avg_abs_err = mean_absolute_error(pe_real, pe_est)
     # print("=================================")
-    print("Average Absolute Error = ", avg_abs_err)
+    print("Average Absolute Error (AAE) = ", avg_abs_err)
     # print("=================================")
     return avg_abs_err
 
@@ -78,8 +84,8 @@ def get_fnr_fpr(lookupT, query_i):
     fpi_est = lookupT.iloc[:, 4*query_i+est_FPI]
     tn, fp, fn, tp = confusion_matrix(fpi_real, fpi_est, labels=[0, 1]).ravel()
     # print("=================================")
-    print("False Nagative Rate = ", fn)
-    print("False Positive Rate = ", fp)
+    print("False Nagative Rate (FNR) = ", fn)
+    print("False Positive Rate (FPR) = ", fp)
     # print("=================================")
     return fn, fp
 
