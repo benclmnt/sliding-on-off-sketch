@@ -10,18 +10,12 @@ from typing import List, Callable, Dict, Any
 from pprint import pprint
 import spookyhash
 
-import numpy as np
-import pandas as pd
-import os
-from sklearn.metrics import mean_absolute_error
-from sklearn.metrics import confusion_matrix
-
 # State
 ON = 1
 OFF = 0
 
 
-@dataclass
+@dataclass(order=True)
 class StateCounter:
     state: int = field(default=ON, compare=False)
     counter: int = 0
@@ -322,7 +316,6 @@ class Benchmark:
     def Thp(self):
         """ """
         pass
-
 
 
 if __name__ == "__main__":
