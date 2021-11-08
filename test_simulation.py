@@ -55,6 +55,7 @@ if __name__ == "__main__":
 
     # run by parameter sets
     for testset in range(len(params)):
+        print()
         print("=================================")
         print("test run No.", testset)
         LookupT = new_LookupTable(dataset, len(params[0][8]))
@@ -73,6 +74,5 @@ if __name__ == "__main__":
                 ignore_index=True
             )
     print(output)
-    print("\n")
     output.to_csv('benchmark.txt', index=False,  sep=' ')
     print("Done")
