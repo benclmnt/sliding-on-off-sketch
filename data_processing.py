@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import confusion_matrix
-from On_Off_Sketch import PE, FPI
+from On_Off_Sketch import PE, FPI, get_hash_fns
 
 (
     idx_d,
@@ -44,7 +44,7 @@ def new_LookupTable(df):
     lookupT = pd.DataFrame(columns=col_names)
     lookupT["UsrA"] = df.UsrA.unique()
     lookupT = lookupT.fillna(0)
-    print(lookupT.head())
+    # print(lookupT.head())
     return lookupT
 
 
@@ -100,22 +100,28 @@ def get_real_persistency(df, lookupT, params):
         startT = params[idx_t_start]
 
     # real_Persistency
-    for i in range(win_count):
-        endT = startT + params[idx_win_size]
-        if endT > params[idx_t_query]:
-            endT = params[idx_t_query]
-        subset_a = df[(df["Time"] >= startT) & (df["Time"] <= endT)].UsrA.unique()
-        for j in range(len(subset_a)):
-            index = lookupT[(lookupT["UsrA"] == subset_a[j])].index
-            tmp = lookupT.loc[index, "real_Persistency"]
-            lookupT.loc[index, "real_Persistency"] = tmp + 1
+    for _ in range(win_count):
+        endT = min(startT + params[idx_win_size], params[idx_t_query])
+        unique_user_in_window = df[
+            (df["Time"] >= startT) & (df["Time"] <= endT)
+        ].UsrA.unique()
+        for user in range(len(unique_user_in_window)):
+            index = lookupT[(lookupT["UsrA"] == unique_user_in_window[user])].index
+            lookupT.loc[index, "real_Persistency"] += 1
+
+        # go to next time window
         startT = endT
+
+    print(lookupT)
 
     # real_FPI
     for index in range(lookupT.shape[0]):
         tmp = lookupT.loc[index, "real_Persistency"]
         if tmp >= params[idx_threshold]:
             lookupT.loc[index, "real_FPI"] = 1
+
+    print(lookupT)
+
     return lookupT
 
 
@@ -129,35 +135,35 @@ def run_simulation(df, lookupT, params):
         NOTE: could query an array of query times
             at each query, get real persistency, report AAE at T
     """
-    pe = PE(
-        params[idx_d],
-        params[idx_L],
-        h=[lambda x: (x + i) % params[idx_L] for i in range(params[idx_d])],
-    )
-    fpi = FPI(params[idx_L], params[idx_w], lambda x: x % params[idx_L])
+    d, L, w = params[idx_d], params[idx_L], params[idx_w]
+    pe = PE(d, L)
+    fpi = FPI(L, w)
 
     # max_time = min(df['Time'].max(), idx_t_start+win_size*T)
 
-    j = params[idx_t_start]
-    win_end = params[idx_t_start] + params[idx_win_size]
+    start, end, win_size = params[idx_t_start], params[idx_t_end], params[idx_win_size]
+    win_start, win_end = start, start + win_size
 
     # for i in range(df.shape[0]):
-    for i in range(params[idx_t_query] + 1):
-        if j > params[idx_t_end]:
+    for _ in range(params[idx_t_query] + 1):
+        if win_start > end:
             break
-        subset_c = df[(df["Time"] == j)].UsrA.to_numpy()
+        subset_c = df[(df["Time"] == win_start)].UsrA.to_numpy()
         for m in range(len(subset_c)):
             pe.insert(subset_c[m])
             fpi.insert(subset_c[m])
-        if j == win_end:
+        if win_start == win_end:
             pe.new_window()
             fpi.new_window()
-            win_end = win_end + params[idx_win_size]
-        if j == params[idx_t_query]:
+            win_end = win_end + win_size
+
+        if win_start == params[idx_t_query]:
             for k in range(lookupT.shape[0]):
                 lookupT.loc[k, "est_Persistency"] = pe.query(lookupT.UsrA[k])
             FPI_list = fpi.find_persistent_above(params[idx_threshold])
             for k in range(len(FPI_list)):
                 index = lookupT[(lookupT["UsrA"] == FPI_list[k])].index
                 lookupT.loc[index, "est_FPI"] = 1
-        j = j + 1
+        win_start = win_start + 1
+
+    print(lookupT)

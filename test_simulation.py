@@ -14,7 +14,7 @@ import pandas as pd
 # from sklearn.metrics import confusion_matrix
 
 # set filename and file directory
-raw_file = "sample"
+raw_file = "sample20"
 file_dir = "./"
 
 """
