@@ -38,13 +38,13 @@ file_dir = "./"
 #  para_d  para_L  para_win_size  para_N  para_w  para_threshold  para_useSL  t_start t_query t_end
 # t_end will be set programmatically.
 params = [
-    [5, 10, 100000, 300000, 10, 2, False, 1217567877, 1217800000, 0],
-    [5, 10, 100000, 300000, 10, 10, False, 1217567877, 1218030000, 0],
+    [5, 10, 100000, 300000, 10, 2, False, 1217567877, [1217800000, 1218000000], 0],
+    [5, 10, 100000, 300000, 10, 10, False, 1217567877,[1217800000, 1218000000], 0],
 ]
 
 # table to gather test results: AAE, FNR, FPR
 col_names = ["testset", "queryT", "aae", "fnr", "fpr"]
-output = pd.DataFrame(columns=col_names)
+output = pd.DataFrame(columns = col_names)
 
 
 if __name__ == "__main__":
@@ -57,18 +57,22 @@ if __name__ == "__main__":
     for testset in range(len(params)):
         print("=================================")
         print("test run No.", testset)
-        LookupT = new_LookupTable(dataset)
+        LookupT = new_LookupTable(dataset, len(params[0][8]))
         LookupT = get_real_persistency(dataset, LookupT, params[testset])
         LookupT = run_simulation(dataset, LookupT, params[testset])
-        (aae, fnr, fpr) = getBenchmark(LookupT)
-        output = output.append(
-            {
-                "testset": testset,
-                "queryT": params[testset][idx_t_query],
-                "aae": aae,
-                "fnr": fnr,
-                "fpr": fpr,
-            }
-        )
-        print("Done")
+        for j in range(len(params[testset][idx_t_query])):
+            (aae, fnr, fpr) = getBenchmark(LookupT, j)
+            output = output.append(
+                {
+                    "testset": testset,
+                    "queryT": params[testset][idx_t_query][j],
+                    "aae": aae,
+                    "fnr": fnr,
+                    "fpr": fpr,
+                },
+                ignore_index=True
+            )
     print(output)
+    print("\n")
+    output.to_csv('benchmark.txt', index=False,  sep=' ')
+    print("Done")
