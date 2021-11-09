@@ -41,12 +41,12 @@ file_dir = "./"
 params = [
     # [5, 10, 10000, 3, 30000, 10, 1, False, 1217567877, [1217618799, 1217623216], 0],
     # [5, 20, 10000, 2, 30000, 10, 1, False, 1217567877,[1217618799, 1217623216], 0],
-    [5, 20, 1000, 2, 3000, 10, 1, True, 1217567877,[1217618799, 1217623216], 0],
+    [5, 20, 1000, 2, 3000, 10, 1, True, 1217567877, [1217618799, 1217623216], 0],
 ]
 
 # table to gather test results: AAE, FNR, FPR
 col_names = ["testset", "queryT", "aae", "fnr", "fpr"]
-output = pd.DataFrame(columns = col_names)
+output = pd.DataFrame(columns=col_names)
 
 
 if __name__ == "__main__":
@@ -73,9 +73,9 @@ if __name__ == "__main__":
                     "fnr": fnr,
                     "fpr": fpr,
                 },
-                ignore_index=True
+                ignore_index=True,
             )
     print(output)
-    output.to_csv('benchmark.txt', index=False,  sep=' ')
-    LookupT.to_csv('LookupT.txt', index=False,  sep=' ')
+    output.to_csv("benchmark.txt", index=False, sep=" ")
+    LookupT.to_csv("LookupT.txt", index=False, sep=" ")
     print("Done")
