@@ -262,8 +262,8 @@ class FPI:
         """Check if x is persistent, if so return the number of time slices it appears, otherwise 0"""
         hash_val = self.hash_fn(x) % self.l
         for k in self.buckets[hash_val].keys():
-            if k == x:
-                return self.buckets[hash_val][x].counter
+            if k == str(x):
+                return self.buckets[hash_val][str(x)].counter
         return 0
 
     def new_slice(self):
