@@ -5,6 +5,7 @@ from data_processing import (
     run_simulation,
     getBenchmark,
     idx_t_query,
+    idx_t_start,
     idx_t_end,
 )
 
@@ -22,26 +23,26 @@ file_dir = "./"
 
     d: number of hash functions
     L: length of StateCounter array for PE
+    w: length of key-value pair array for FPI
+    threshold: a array of thresholds to be query to FPI (from 5 to 105, delta = 10)
 
-    win_size: time window size
-    win_SL: in sliding window, the date is maintained by win_SL latest window
+    slice_size: size of one time slice
+
     t_min: earliest time in dataset
     t_max: last time in dataset
     t_start: starting point of test (greater than 1217567877)
     t_query: duration of whole time for recording persistence (less than 1218036494)
 
-    N: sliding window width
-    w: length of key-value pair array for FPI
-    threshold: a array of thresholds to be query to FPI (from 5 to 105, delta = 10)
-
     useSL: enable sliding window option
+    N: sliding window width
+
 """
-#  para_d  para_L  para_win_size  para_win_SL para_N  para_w  para_threshold  para_useSL  t_start t_query t_end
+#  para_d  para_L  para_slice_size  para_N  para_w  para_threshold  para_useSL  t_start t_query t_end
 # t_end will be set programmatically.
 params = [
-    # [5, 10, 10000, 3, 30000, 10, 1, False, 1217567877, [1217618799, 1217623216], 0],
-    # [5, 20, 10000, 2, 30000, 10, 1, False, 1217567877,[1217618799, 1217623216], 0],
-    [5, 20, 1000, 2, 3000, 10, 1, True, 1217567877, [1217618799, 1217623216], 0],
+    # [5, 10, 10000,  30000, 10, 1, False, 1217567877, [1217618799, 1217623216], 0],
+    # [5, 20, 10000,  30000, 10, 1, False, 1217567877,[1217618799, 1217623216], 0],
+    [5, 20, 5000, 10000, 10, 2, True, 1217567877, [1217618799, 1217623216], 0],
 ]
 
 # table to gather test results: AAE, FNR, FPR
@@ -54,6 +55,8 @@ if __name__ == "__main__":
     (dataset, t_min, t_max) = load_dataset(file_dir, raw_file)
     for i in range(len(params)):
         params[i][idx_t_end] = t_max
+        if params[i][idx_t_start] < t_min:
+            params[i][idx_t_start] = t_min
 
     # run by parameter sets
     for testset in range(len(params)):

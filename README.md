@@ -5,4 +5,4 @@ Name2: Bennett Clement (A0200739J)
 On-Off-sketch with sliding window in Python
 
 Changes:
-	On_Off_Sketch.py line 248 change to '>='
+	1. On_Off_Sketch.py line 248 change to '>='

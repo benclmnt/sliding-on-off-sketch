@@ -1,13 +1,12 @@
 import pandas as pd
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import confusion_matrix
-from On_Off_Sketch import PE, FPI, get_hash_fns
+from On_Off_Sketch import PE, FPI, get_hash_fns, SI_PE, SI_FPI
 
 (
     idx_d,
     idx_L,
-    idx_win_size,
-    idx_win_SL,
+    idx_slice_size,
     idx_N,
     idx_w,
     idx_threshold,
@@ -15,7 +14,7 @@ from On_Off_Sketch import PE, FPI, get_hash_fns
     idx_t_start,
     idx_t_query,
     idx_t_end,
-) = range(11)
+) = range(10)
 
 
 (
@@ -106,18 +105,18 @@ def get_real_persistency(df, lookupT, params):
     for j in range(len(params[idx_t_query])):
         #  select the duration of time to record persistence based on Sliding Window: useSL
         if params[idx_useSL]:
-            win_count = params[idx_win_SL]
-            startT = params[idx_t_query][j] - params[idx_win_size] * win_count
+            slice_count = params[idx_N]/params[idx_slice_size]
+            startT = params[idx_t_query][j] - params[idx_N]
         else:
-            win_count = int(
-                (params[idx_t_query][j] - params[idx_t_start]) / params[idx_win_size]
+            slice_count = int(
+                (params[idx_t_query][j] - params[idx_t_start]) / params[idx_slice_size]
                 + 1
             )
             startT = params[idx_t_start]
 
         # real_Persistency
-        for _ in range(win_count):
-            endT = min(startT + params[idx_win_size], params[idx_t_query][j])
+        for _ in range(int(slice_count)):
+            endT = min(startT + params[idx_slice_size], params[idx_t_query][j])
             unique_user_in_slice = df[
                 (df["Time"] >= startT) & (df["Time"] < endT)
             ].UsrA.unique()
@@ -152,12 +151,18 @@ def run_simulation(df, lookupT, params):
             at each query, get real persistency, report AAE at T
     """
     d, L, w = params[idx_d], params[idx_L], params[idx_w]
-    pe = PE(d, L)
-    fpi = FPI(L, w)
+    if params[idx_useSL] == True:
+        k = params[idx_N]/params[idx_slice_size]
+        N = k
+        pe = SI_PE(d, L, k, N)
+        fpi = SI_FPI(L, w, k, N)
+    else:
+        pe = PE(d, L)
+        fpi = FPI(L, w)
     query_list = params[idx_t_query]
 
-    start, end, win_size = params[idx_t_start], query_list[-1], params[idx_win_size]
-    win_start, win_end = start, start + win_size
+    start, end, slice_size = params[idx_t_start], query_list[-1], params[idx_slice_size]
+    win_start, win_end = start, start + slice_size
 
     for i in range(df.shape[0]):
         if win_start > end:
@@ -185,13 +190,13 @@ def run_simulation(df, lookupT, params):
             pe.new_slice()
             fpi.new_slice()
             print("new slice")
-            win_end = win_end + win_size
+            win_end = win_end + slice_size
             pe.insert(df.iloc[i, 0])
             fpi.insert(df.iloc[i, 0])
             print("insert : " + str(df.iloc[i, 0]) + " at " + str(df.iloc[i, 1]))
 
         if df.iloc[i, 1] > win_end:
-            delta_win = int((df.iloc[i, 1] - win_end) / win_size) + 1
+            delta_win = int((df.iloc[i, 1] - win_end) / slice_size) + 1
             for _ in range(delta_win):
                 pe.new_slice()
                 fpi.new_slice()
@@ -199,7 +204,7 @@ def run_simulation(df, lookupT, params):
             pe.insert(df.iloc[i, 0])
             fpi.insert(df.iloc[i, 0])
             print("insert : " + str(df.iloc[i, 0]) + " at " + str(df.iloc[i, 1]))
-            win_end = win_end + win_size * delta_win
+            win_end = win_end + slice_size * delta_win
 
     # print(lookupT)
 
