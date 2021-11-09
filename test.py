@@ -36,7 +36,9 @@ class SlidingStateCounterTest(unittest.TestCase):
 class PE_Test(unittest.TestCase):
     def test_1(self):
         l = 5
-        pe = PE(3, l, h=[lambda x: (x + i) % l for i in range(3)])
+        pe = PE(3, l)
+        # overwrite hash_fn
+        pe.hash_fns = [lambda x, i=i: (x + i) % l for i in range(3)]
         pe.insert(1)
         pe.insert(2)
         self.assertEqual(pe.query(6), 1)
@@ -53,7 +55,9 @@ class PE_Test(unittest.TestCase):
 
 class FPI_Test(unittest.TestCase):
     def test_1(self):
-        fpi = FPI(5, 1, lambda x: x % 5)
+        fpi = FPI(5, 1)
+        # overwrite hash_fn
+        fpi.hash_fn = lambda x: x % 5
         fpi.insert(1)
         fpi.insert(2)
         fpi.new_window()

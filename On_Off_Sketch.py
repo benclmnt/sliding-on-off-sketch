@@ -15,7 +15,7 @@ ON = 1
 OFF = 0
 
 
-@dataclass
+@dataclass(order=True)
 class StateCounter:
     state: int = field(default=ON, compare=False)
     counter: int = 0
@@ -36,7 +36,7 @@ class StateCounter:
         return StateCounter(self.state, self.counter)
 
 
-@dataclass
+@dataclass(order=True)
 class SlidingStateCounter(StateCounter):
     """
     d: length of history recorded
@@ -45,14 +45,22 @@ class SlidingStateCounter(StateCounter):
 
     history: List[StateCounter] = field(default_factory=list, compare=False)
     d: int = field(default=-1, repr=False)
+    _counter: int = field(init=False, repr=False)  # not used.
 
     def __post_init__(self):
         if self.d < 0:
             raise ValueError("Please specify value for d")
 
+    # shadows StateCounter's counter.
     @property
     def counter(self) -> int:
         return sum(sc.counter for sc in self.history)
+
+    # This function is not used but needs to be provided,
+    # else the parent (StateCounter) will throw error on setting counter : 0 (default)
+    @counter.setter
+    def counter(self, counter: int):
+        self._counter = counter
 
     def new_day(self):
         """
@@ -70,13 +78,15 @@ class SlidingStateCounter(StateCounter):
         history_copy = []
         for entry in self.history:
             history_copy.append(entry.copy())
-        return SlidingStateCounter(self.state, self.counter, history_copy)
+        return SlidingStateCounter(
+            state=self.state, counter=self.counter, history=history_copy, d=self.d
+        )
 
 
 def get_hash_fns(d, l):
     # TODO: populate this method
     return [
-        lambda x, seed=seed: spookyhash.hash32(x.encode(), seed=seed) % l
+        lambda x, seed=seed: spookyhash.hash32(str(x).encode(), seed=seed) % l
         for seed in range(d)
     ]
 
@@ -107,11 +117,10 @@ class PE:
     l: int
     hash_fns: List[Callable] = field(init=False, repr=False)
     counters: List[List[StateCounter]] = field(init=False)
-    h: InitVar[List[Callable]]
 
-    def __post_init__(self, h):
+    def __post_init__(self, h=None):
         self.counters = [[StateCounter() for _ in range(self.l)] for _ in range(self.d)]
-        self.hash_fns = h or get_hash_fns(self.d, self.l)
+        self.hash_fns = get_hash_fns(self.d, self.l)
 
     def new_window(self):
         for i in range(self.d):
@@ -181,7 +190,7 @@ class FPI:
 
     l: int
     w: int
-    hash_fn: Callable = field(repr=False)
+    hash_fn: Callable = field(init=False, repr=False)
     buckets: List[Dict[Any, StateCounter]] = field(init=False)
     counters: List[StateCounter] = field(init=False)
 
@@ -202,6 +211,7 @@ class FPI:
         """
         self.counters = [StateCounter() for _ in range(self.l)]
         self.buckets = [dict() for _ in range(self.l)]
+        self.hash_fn = get_hash_fns(1, self.l)[0]
 
     def insert(self, x):
         hash_val = self.hash_fn(x) % self.l
@@ -235,7 +245,7 @@ class FPI:
         res = []
         for i in range(len(self.buckets)):
             for k, v in self.buckets[i].items():
-                if v.counter > threshold:
+                if v.counter >= threshold:
                     res.append(k)
         return res
 
@@ -293,29 +303,29 @@ class SI_FPI(FPI):
         self.time_window = (self.time_window + 1) % self.N
 
 
-class Benchmark:
-    """
-    some benchmarks about AAE, F1 Score, and throughput
-    """
+# class Benchmark:
+#     """
+#     some benchmarks about AAE, F1 Score, and throughput
+#     """
 
-    def __init__(self):
-        pass
+#     def __init__(self):
+#         pass
 
-    def BenchMark(self):
-        """ """
-        pass
+#     def BenchMark(self):
+#         """ """
+#         pass
 
-    def SketchError(self):
-        """ """
-        pass
+#     def SketchError(self):
+#         """ """
+#         pass
 
-    def TopKError(self):
-        """ """
-        pass
+#     def TopKError(self):
+#         """ """
+#         pass
 
-    def Thp(self):
-        """ """
-        pass
+#     def Thp(self):
+#         """ """
+#         pass
 
 
 if __name__ == "__main__":
