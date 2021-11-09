@@ -1,4 +1,4 @@
-from On_Off_Sketch import PE, FPI
+from On_Off_Sketch import PE, FPI, SI_FPI, SI_PE
 from math import ceil
 
 from dataclasses import InitVar, dataclass, field
@@ -19,19 +19,19 @@ def avg(arr):
 
 @dataclass
 class Real_PE_FPI:
-    current_window: Set[int] = field(default_factory=set)
+    current_slice: Set[int] = field(default_factory=set)
     persistence: Dict[int, int] = field(default_factory=lambda: defaultdict(int))
 
     def insert(self, x):
-        self.current_window.add(int(x))
+        self.current_slice.add(int(x))
 
     def new_slice(self):
-        for item in self.current_window:
+        for item in self.current_slice:
             self.persistence[item] += 1
-        self.current_window.clear()
+        self.current_slice.clear()
 
-    def query(self, x):
-        return self.persistence[x] + int(int(x) in self.current_window)
+    def query(self, x: int):
+        return self.persistence[x] + int(int(x) in self.current_slice)
 
     def find_persistent_above(self, threshold):
         if threshold == 0:
@@ -39,16 +39,46 @@ class Real_PE_FPI:
 
         ans = []
         for item, persistency in self.persistence:
-            if persistency + int(item in self.current_window) >= threshold:
+            if persistency + int(item in self.current_slice) >= threshold:
                 ans.append(item)
 
         return ans
 
+    def total_persistence(self):
+        return sum(v for v in self.persistence.values())
+
 
 @dataclass
 class Sliding_PE_FPI:
-    current_window: Set[int] = field(default_factory=set)
-    persistence: Dict[int, int] = field(default_factory=lambda: defaultdict(int))
+    sliding_window_size: int
+    history: List[Set[int]] = field(default_factory=list)
+    total_persistencies_in_single_window: List[int] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.history.append(set())
+
+    def insert(self, x: int):
+        self.history[-1].add(int(x))
+
+    def new_slice(self):
+        if len(self.history) == self.sliding_window_size:
+            self.history.pop(0)
+        self.total_persistencies_in_single_window.append(
+            sum(len(hist) for hist in self.history)
+        )
+        self.history.append(set())
+
+    def query(self, x):
+        return sum(
+            int(x in self.history[i])
+            for i in range(min(self.sliding_window_size, len(self.history)))
+        )
+
+    def find_persistent_above(self, threshold):
+        raise NotImplementedError
+
+    def total_persistence(self):
+        return avg(self.total_persistencies_in_single_window)
 
 
 @dataclass
@@ -78,6 +108,9 @@ class Benchmark:
         pe_mae = mean_absolute_error(real_pe, est_pe)
         self.pe_maes.append(pe_mae)
 
+        if DEBUG:
+            print(f"{self.unique_users=}\n{real_pe=}\n{est_pe=}\n{pe_mae=}")
+
         # FPI : query for MAE, false positives, false negatives
         real_fpi = [
             int(real.query(user) >= self.threshold) for user in self.unique_users
@@ -90,9 +123,10 @@ class Benchmark:
 
         if DEBUG:
             print(
-                f"{self.unique_users=}\n{real_fpi=}\nraw_fpi={[fpi.query(user) for user in self.unique_users]}\n{est_fpi=}\n{fpi_mae=} {fp=} {fn=}"
+                f"{self.unique_users=}\n{real_fpi=}\nraw_fpi={[real.query(user) for user in self.unique_users]}\nraw_est_fpi={[fpi.query(user) for user in self.unique_users]}\n{est_fpi=}\n{fpi_mae=} {fp=} {fn=}"
             )
             pprint(fpi)
+            print(f"{(num_persistent, num_non_persistent)=}")
 
         self.fpi_maes.append(fpi_mae)
         if num_non_persistent > 0 and num_persistent > 0:
@@ -104,14 +138,27 @@ class Benchmark:
         self.queried_in_current_slice = False
 
 
-def run(filename, d, L, w, num_windows, start_ts, end_ts, threshold, history=1):
+def run(
+    filename,
+    d,
+    L,
+    w,
+    num_slices,
+    start_ts,
+    end_ts,
+    threshold,
+    sliding_window_size=1,
+    history=1,  # as if there is no history
+):
     # state maintained
-    slice_size = ceil((end_ts - start_ts) / num_windows)
+    slice_size = ceil((end_ts - start_ts) / num_slices)
     slice_start, slice_end = start_ts, start_ts + slice_size
+    # only query after 2 sliding window (2N time slice)
+    last_query = slice_end + slice_size
 
     # print params
     print(
-        f"{(filename, d, L, w, num_windows, start_ts, end_ts, slice_size, threshold, history)=}"
+        f"{(filename, d, L, w, num_slices, start_ts, end_ts, slice_size, threshold, sliding_window_size, history)=}"
     )
 
     # read unique users
@@ -119,9 +166,15 @@ def run(filename, d, L, w, num_windows, start_ts, end_ts, threshold, history=1):
         unique_users = list(map(lambda s: int(s.strip()), f.readlines()))
 
     # our things
-    pe = PE(d, L)
-    fpi = FPI(L, w)
-    real = Real_PE_FPI()
+    if sliding_window_size == 1:
+        pe = PE(d, L)
+        fpi = FPI(L, w)
+        real = Real_PE_FPI()
+    else:
+        pe = SI_PE(d, L, history, sliding_window_size)
+        fpi = SI_FPI(L, w, history, sliding_window_size)
+        real = Sliding_PE_FPI(sliding_window_size)
+
     bench = Benchmark(unique_users, threshold)
 
     with open(f"{filename}.txt", "r") as f:
@@ -133,9 +186,10 @@ def run(filename, d, L, w, num_windows, start_ts, end_ts, threshold, history=1):
             user, _, ts = line.strip().split()
             ts = int(ts)
 
-            # query every after N/5, and get AAE for PE.
-            if ts >= slice_start + slice_size / 5:
+            # query after sliding window moves N/5
+            if ts >= last_query + sliding_window_size * slice_size / 5:
                 bench.query_all(real=real, pe=pe, fpi=fpi)
+                last_query += sliding_window_size * slice_size / 5
 
             # update window if necessary
             if ts >= slice_end:
@@ -153,37 +207,51 @@ def run(filename, d, L, w, num_windows, start_ts, end_ts, threshold, history=1):
             fpi.insert(user)
             real.insert(user)
 
-            if DEBUG:
+            if DEBUG >= 2:
                 print(user, ts)
 
+        print(f"Total persistence: {real.total_persistence()}")
         bench.print_results()
 
 
 if __name__ == "__main__":
     # d, L, w = 5, 20, 2
-    # num_windows = 5
+    # num_slices = 5
     # # this is hardcoded. need to look what's the last end_ts.
     # start_ts, end_ts = 1217567877, 1217623216
     # threshold = 2
 
     # run(
-    #     "sample",
+    #     "sample20",
     #     d=5,
     #     L=20,
     #     w=2,
-    #     num_windows=10,
+    #     num_slices=10,
     #     start_ts=1217567877,
     #     end_ts=1217623216,  # hardcoded
     #     threshold=2,
     # )
 
+    # run(
+    #     "sample100",
+    #     d=5,
+    #     L=20,
+    #     w=2,
+    #     num_slices=10,
+    #     start_ts=1217567877,
+    #     end_ts=1217671224,  # hardcoded
+    #     threshold=2,
+    #     sliding_window_size=2,
+    # )
+
     run(
         "sample",
         d=5,
-        L=20,
+        L=50,
         w=2,
-        num_windows=20,
+        num_slices=20,
         start_ts=1217567877,
         end_ts=1218036494,  # hardcoded
-        threshold=2,
+        threshold=3,
+        sliding_window_size=2,
     )
