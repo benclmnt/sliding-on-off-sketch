@@ -181,14 +181,14 @@ class SI_PE(PE):
         super().new_slice()
 
         # new_day for l/N buckets. Assume for now that l > N
-        buckets_to_advance = self.time_slice_id * (self.l // self.N) + int(
+        buckets_to_advance = int(self.time_slice_id * (self.l // self.N) + int(
             self.time_slice_id < self.l % self.N
-        )
+        ))
         for i in range(self.d):
             for j in range(buckets_to_advance):
                 self.counters[i][self.time_slice_id + j].new_day()
 
-        self.time_slice_id = (self.time_slice_id + 1) % self.N
+        self.time_slice_id = int((self.time_slice_id + 1) % self.N)
 
 
 @dataclass
@@ -299,9 +299,9 @@ class SI_FPI(FPI):
         super().new_slice()
 
         # new_day for l/N buckets. Assume for now that l > N
-        buckets_to_advance = self.time_slice_id * (self.l // self.N) + int(
+        buckets_to_advance = int(self.time_slice_id * (self.l // self.N) + int(
             self.time_slice_id < self.l % self.N
-        )
+        ))
 
         # advances counter + all buckets
         for j in range(buckets_to_advance):
@@ -309,7 +309,7 @@ class SI_FPI(FPI):
             for bucket in self.buckets[self.time_slice_id + j].values():
                 bucket.new_day()
 
-        self.time_slice_id = (self.time_slice_id + 1) % self.N
+        self.time_slice_id = int((self.time_slice_id + 1) % self.N)
 
 
 if __name__ == "__main__":
