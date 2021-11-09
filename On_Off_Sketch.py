@@ -161,12 +161,12 @@ class SI_PE(PE):
     """
     k: number of fields in each bucket, recording information in the last d Days. Increases space usage by d times
     N: sliding window size. Each sliding window contains N time slices.
-    time_slice_id: which time_slice it is currently in? (0 to N-1)
+    next_bucket: which bucket id we should start applying new_day next
     """
 
     k: int
     N: int
-    time_slice_id: int = field(init=False)
+    next_bucket: int = field(init=False)
 
     def __post_init__(self):
         super().__post_init__()
@@ -174,21 +174,23 @@ class SI_PE(PE):
             [SlidingStateCounter(d=self.k) for _ in range(self.l)]
             for _ in range(self.d)
         ]
-        self.time_slice_id = 0
+        self.next_bucket = 0
+        self._total_buckets_to_advance = (self.k - 1) * self.l
 
     def new_slice(self):
         # reset state of all today counters
         super().new_slice()
 
-        # new_day for l/N buckets. Assume for now that l > N
-        buckets_to_advance = self.time_slice_id * (self.l // self.N) + int(
-            self.time_slice_id < self.l % self.N
+        # new_day for (k-1)l/N buckets. Assume for now that l > N
+
+        buckets_to_advance = (self._total_buckets_to_advance // self.N) + int(
+            self.next_bucket < (self._total_buckets_to_advance % self.N)
         )
         for i in range(self.d):
             for j in range(buckets_to_advance):
-                self.counters[i][self.time_slice_id + j].new_day()
+                self.counters[i][(self.next_bucket + j) % self.l].new_day()
 
-        self.time_slice_id = (self.time_slice_id + 1) % self.N
+        self.next_bucket = (self.next_bucket + buckets_to_advance) % self.l
 
 
 @dataclass
@@ -280,45 +282,75 @@ class SI_FPI(FPI):
     """
     k: number of fields in each bucket, recording information in the last d Days. Increases space usage by d times
     N: sliding window size. Each sliding window contains N time slices.
-    time_slice_id: which time_slice it is currently in? (0 to N-1)
+    next_bucket: which bucket id we should start applying new_day next
     """
 
     k: int
     N: int
-    time_slice_id: int = field(init=False)
+    next_bucket: int = field(init=False)
     buckets: List[Dict[Any, SlidingStateCounter]] = field(init=False)
     counters: List[SlidingStateCounter] = field(init=False)
 
     def __post_init__(self):
         super().__post_init__()
         self.counters = [SlidingStateCounter(d=self.k) for _ in range(self.l)]
-        self.time_slice_id = 0
+        self.next_bucket = 0
+        self._total_buckets_to_advance = (self.k - 1) * self.l
 
     def new_slice(self):
         # reset state of all today counters
         super().new_slice()
 
         # new_day for l/N buckets. Assume for now that l > N
-        buckets_to_advance = self.time_slice_id * (self.l // self.N) + int(
-            self.time_slice_id < self.l % self.N
+        buckets_to_advance = (self._total_buckets_to_advance // self.N) + int(
+            self.next_bucket < (self._total_buckets_to_advance % self.N)
         )
 
         # advances counter + all buckets
         for j in range(buckets_to_advance):
-            self.counters[self.time_slice_id + j].new_day()
-            for bucket in self.buckets[self.time_slice_id + j].values():
+            self.counters[(self.next_bucket + j) % self.l].new_day()
+            for bucket in self.buckets[(self.next_bucket + j) % self.l].values():
                 bucket.new_day()
 
-        self.time_slice_id = (self.time_slice_id + 1) % self.N
+        self.next_bucket = (self.next_bucket + buckets_to_advance) % self.l
 
 
 if __name__ == "__main__":
-    sipe = SI_PE(d=2, l=3, k=2, N=2)
+    sipe = SI_PE(d=2, l=3, k=3, N=2)
     sipe.hash_fns = [lambda x, i=i: (x + i) % 3 for i in range(2)]
-    print("ASDF")
     sipe.insert(0)
-    pprint(sipe.counters)
-    sipe.new_slice()
-    pprint(sipe.counters)
+    print(sipe.counters, "\n")
+
+    sipe.new_slice()  # new_day for x % 3 == 0 and 1
+    print("1", sipe.counters, "\n")
     sipe.insert(0)
-    pprint(sipe.counters)
+    print("insert 0", sipe.counters, "\n")
+    sipe.new_slice()  # new_day x % 3 == 2
+    print("2", sipe.counters, "\n")
+    sipe.insert(0)
+    print(f"{sipe.query(0)=}")
+    sipe.new_slice()  # new_day x % 3 == 0 and 1
+    print(f"{sipe.query(0)=}")
+    print("3", sipe.counters, "\n")
+    sipe.new_slice()  # new_day x % 3 ==
+    sipe.new_slice()  # new_day x % 3 == 0 and 1
+    print("4", sipe.counters, "\n")
+    print(f"{sipe.query(0)=}")
+
+    # sifpi = SI_FPI(l=3, w=2, k=3, N=2)
+    # sifpi.hash_fn = lambda x: x % 3
+    # sifpi.insert(0)
+    # print(sifpi.counters, "\n")
+
+    # sifpi.new_slice()  # new_day for x % 3 == 0 and 1
+    # print("1", sifpi.counters, "\n")
+    # sifpi.insert(0)
+    # print("insert 0", sifpi.counters, "\n")
+    # sifpi.new_slice()  # new_day x % 3 == 2
+    # print("2", sifpi.counters, "\n")
+    # sifpi.insert(0)
+    # sifpi.new_slice()  # new_day x % 3 == 0 and 1
+    # print("3", sifpi.counters, "\n")
+    # sifpi.new_slice()
+    # sifpi.new_slice()
+    # print("4", sifpi.counters, "\n")
