@@ -45,7 +45,7 @@ class SlidingStateCounter(StateCounter):
 
     history: List[StateCounter] = field(default_factory=list, compare=False)
     d: int = field(default=-1, repr=False)
-    _counter: int = field(init=False, repr=False)  # not used.
+    _counter: int = field(init=False, repr=False)
 
     def __post_init__(self):
         if self.d < 0:
@@ -54,24 +54,31 @@ class SlidingStateCounter(StateCounter):
     # shadows StateCounter's counter.
     @property
     def counter(self) -> int:
-        return sum(sc.counter for sc in self.history)
+        return sum(sc.counter for sc in self.history) + self._counter
 
-    # This function is not used but needs to be provided,
-    # else the parent (StateCounter) will throw error on setting counter : 0 (default)
+    # this function should only be called once by __init__
     @counter.setter
     def counter(self, counter: int):
+        # print("Should not be called")
         self._counter = counter
+
+    def increment(self):
+        if self.state == OFF:
+            return self
+        self.state, self._counter = OFF, self._counter + 1
+        return self
 
     def new_day(self):
         """
         New day starts, and all stored information are shifted to be 1 days older
         Current state is reset
         """
-        if len(self.history) == (self.d - 1):
-            self.history.pop(0)
-        self.history.append(StateCounter(self.state, self.counter))
+        if self.d > 1:
+            if len(self.history) == (self.d - 1):
+                self.history.pop(0)
+            self.history.append(StateCounter(self.state, self._counter))
 
-        self.state, self.counter = ON, 0
+        self.state, self._counter = ON, 0
 
     def copy(self) -> "SlidingStateCounter":
         # make a deep copy of history
@@ -79,7 +86,7 @@ class SlidingStateCounter(StateCounter):
         for entry in self.history:
             history_copy.append(entry.copy())
         return SlidingStateCounter(
-            state=self.state, counter=self.counter, history=history_copy, d=self.d
+            state=self.state, counter=self._counter, history=history_copy, d=self.d
         )
 
 
@@ -118,7 +125,7 @@ class PE:
     hash_fns: List[Callable] = field(init=False, repr=False)
     counters: List[List[StateCounter]] = field(init=False)
 
-    def __post_init__(self, h=None):
+    def __post_init__(self):
         self.counters = [[StateCounter() for _ in range(self.l)] for _ in range(self.d)]
         self.hash_fns = get_hash_fns(self.d, self.l)
 
@@ -147,6 +154,8 @@ class PE:
         )
 
 
+# Note to self: It is almost always wrong to do self.counter.
+# Use self._counter instead!!!
 @dataclass
 class SI_PE(PE):
     """
@@ -159,12 +168,12 @@ class SI_PE(PE):
     N: int
     time_window: int = field(init=False)
 
-    def __post_init__(self, h):
+    def __post_init__(self):
+        super().__post_init__()
         self.counters = [
             [SlidingStateCounter(d=self.k) for _ in range(self.l)]
             for _ in range(self.d)
         ]
-        self.hash_fns = h
         self.time_window = 0
 
     def new_window(self):
@@ -303,31 +312,13 @@ class SI_FPI(FPI):
         self.time_window = (self.time_window + 1) % self.N
 
 
-# class Benchmark:
-#     """
-#     some benchmarks about AAE, F1 Score, and throughput
-#     """
-
-#     def __init__(self):
-#         pass
-
-#     def BenchMark(self):
-#         """ """
-#         pass
-
-#     def SketchError(self):
-#         """ """
-#         pass
-
-#     def TopKError(self):
-#         """ """
-#         pass
-
-#     def Thp(self):
-#         """ """
-#         pass
-
-
 if __name__ == "__main__":
-    sipe = SI_PE(5, 3, get_hash_fns(5, 3), 1, 2)
+    sipe = SI_PE(d=2, l=3, k=2, N=2)
+    sipe.hash_fns = [lambda x, i=i: (x + i) % 3 for i in range(2)]
+    print("ASDF")
+    sipe.insert(0)
+    pprint(sipe.counters)
+    sipe.new_window()
+    pprint(sipe.counters)
+    sipe.insert(0)
     pprint(sipe.counters)
