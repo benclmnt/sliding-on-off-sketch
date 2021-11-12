@@ -73,12 +73,13 @@ class SlidingStateCounter(StateCounter):
         New day starts, and all stored information are shifted to be 1 days older
         Current state is reset
         """
-        if self.d > 1:
-            if len(self.history) == (self.d - 1):
-                self.history.pop(0)
-            self.history.append(StateCounter(self.state, self._counter))
+        if self.d == 1:
+            return
 
-        self.state, self._counter = ON, 0
+        if len(self.history) == (self.d - 1):
+            self.history.pop(0)
+        self.history.append(StateCounter(self.state, self._counter))
+        self._counter = 0
 
     def copy(self) -> "SlidingStateCounter":
         # make a deep copy of history
