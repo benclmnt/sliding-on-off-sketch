@@ -44,7 +44,7 @@ class PE_Test(unittest.TestCase):
         self.assertEqual(pe.query(6), 1)
         pe.insert(6)
         self.assertEqual(pe.query(6), 1)
-        pe.new_window()
+        pe.new_slice()
         pe.insert(11)
         # print(f"-> {pe = }")
         self.assertEqual(pe.query(1), 2)
@@ -60,7 +60,7 @@ class FPI_Test(unittest.TestCase):
         fpi.hash_fn = lambda x: x % 5
         fpi.insert(1)
         fpi.insert(2)
-        fpi.new_window()
+        fpi.new_slice()
         fpi.insert(11)
         fpi.insert(1)
         fpi.insert(1)
@@ -69,13 +69,13 @@ class FPI_Test(unittest.TestCase):
         self.assertEqual(fpi.query(2), 1)
         self.assertEqual(fpi.query(7), 0)
         self.assertEqual(fpi.query(3), 0)
-        fpi.new_window()
+        fpi.new_slice()
         fpi.insert(1)
         fpi.insert(7)
         self.assertEqual(fpi.query(2), 0)
         self.assertEqual(fpi.query(7), 2)
         self.assertEqual(fpi.find_persistent_above(1), [1, 7])
-        self.assertEqual(fpi.find_persistent_above(2), [1])
+        self.assertEqual(fpi.find_persistent_above(3), [1])
 
 
 if __name__ == "__main__":

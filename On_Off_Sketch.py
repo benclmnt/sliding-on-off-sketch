@@ -73,12 +73,13 @@ class SlidingStateCounter(StateCounter):
         New day starts, and all stored information are shifted to be 1 days older
         Current state is reset
         """
-        if self.d > 1:
-            if len(self.history) == (self.d - 1):
-                self.history.pop(0)
-            self.history.append(StateCounter(self.state, self._counter))
+        if self.d == 1:
+            return
 
-        self.state, self._counter = ON, 0
+        if len(self.history) == (self.d - 1):
+            self.history.pop(0)
+        self.history.append(StateCounter(self.state, self._counter))
+        self._counter = 0
 
     def copy(self) -> "SlidingStateCounter":
         # make a deep copy of history
@@ -264,8 +265,8 @@ class FPI:
         """Check if x is persistent, if so return the number of time slices it appears, otherwise 0"""
         hash_val = self.hash_fn(x) % self.l
         for k in self.buckets[hash_val].keys():
-            if k == x:
-                return self.buckets[hash_val][x].counter
+            if k == str(x):
+                return self.buckets[hash_val][str(x)].counter
         return 0
 
     def new_slice(self):
