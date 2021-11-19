@@ -14,7 +14,7 @@ def avg(arr):
     if len(arr) == 0:
         return -1
 
-    return round(sum(arr) / len(arr), 2)
+    return sum(arr) / len(arr)
 
 
 @dataclass
@@ -109,6 +109,7 @@ class Benchmark:
         self.pe_maes.append(pe_mae)
 
         if DEBUG:
+            pprint(pe)
             print(f"{self.unique_users=}\n{real_pe=}\n{est_pe=}\n{pe_mae=}")
 
         # FPI : query for MAE, false positives, false negatives
@@ -130,8 +131,8 @@ class Benchmark:
 
         self.fpi_maes.append(fpi_mae)
         if num_non_persistent > 0 and num_persistent > 0:
-            self.fpi_fps.append(round(fp / num_non_persistent, 2))
-            self.fpi_fns.append(round(fn / num_persistent, 2))
+            self.fpi_fps.append(fp / num_non_persistent)
+            self.fpi_fns.append(fn / num_persistent)
         self.queried_in_current_slice = True
 
     def new_slice(self):
@@ -223,7 +224,7 @@ if __name__ == "__main__":
 
     # run(
     #     "sample20",
-    #     d=5,
+    #     d=2,
     #     L=20,
     #     w=2,
     #     num_slices=10,
@@ -232,26 +233,27 @@ if __name__ == "__main__":
     #     threshold=2,
     # )
 
+    run(
+        "sample100",
+        d=2,
+        L=20,
+        w=2,
+        num_slices=10,
+        start_ts=1217567877,
+        end_ts=1217671224,  # hardcoded
+        threshold=2,
+        sliding_window_size=4,
+        history=1,
+    )
+
     # run(
-    #     "sample100",
-    #     d=5,
-    #     L=20,
-    #     w=2,
-    #     num_slices=10,
+    #     "sample",
+    #     d=2,
+    #     L=50,
+    #     w=8,
+    #     num_slices=20,
     #     start_ts=1217567877,
-    #     end_ts=1217671224,  # hardcoded
+    #     end_ts=1218036494,  # hardcoded
     #     threshold=2,
     #     sliding_window_size=2,
     # )
-
-    run(
-        "sample",
-        d=5,
-        L=50,
-        w=2,
-        num_slices=20,
-        start_ts=1217567877,
-        end_ts=1218036494,  # hardcoded
-        threshold=3,
-        sliding_window_size=2,
-    )
