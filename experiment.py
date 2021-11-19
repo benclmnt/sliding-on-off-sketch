@@ -234,7 +234,7 @@ if __name__ == "__main__":
     # )
 
     run(
-        "sample100",
+        "data/sample100",
         d=2,
         L=20,
         w=2,

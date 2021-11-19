@@ -2,7 +2,8 @@
 
 import sys
 
-with open(sys.argv[1], "r") as fr, open(sys.argv[1] + "-unique", "w") as fw:
+filename = sys.argv[1]
+with open(f"{filename}.txt", "r") as fr, open(f"{filename}-unique.txt", "w") as fw:
     unique_users = set()
     for line in fr.readlines():
         user, _, _ = line.strip().split()
